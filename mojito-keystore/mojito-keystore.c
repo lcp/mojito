@@ -46,6 +46,9 @@ static const Keys keys[] = {
 #ifdef MYSPACE_APIKEY
   { "myspace", MYSPACE_APIKEY, MYSPACE_SECRET },
 #endif
+#ifdef FACEBOOK_APIKEY
+  { "facebook", FACEBOOK_APIKEY, FACEBOOK_SECRET },
+#endif
   { NULL }
 };
 

@@ -3,6 +3,7 @@
 
 #include <rest/oauth-proxy.h>
 #include <rest/flickr-proxy.h>
+#include <rest/facebook-proxy.h>
 
 G_BEGIN_DECLS
 
@@ -15,11 +16,19 @@ void mojito_keyfob_oauth (OAuthProxy *proxy,
 
 gboolean mojito_keyfob_oauth_sync (OAuthProxy *proxy);
 
+
 void mojito_keyfob_flickr (FlickrProxy *proxy,
                           MojitoKeyfobCallback callback,
                           gpointer user_data);
 
 gboolean mojito_keyfob_flickr_sync (FlickrProxy *proxy);
+
+
+void mojito_keyfob_facebook (FacebookProxy *proxy,
+                          MojitoKeyfobCallback callback,
+                          gpointer user_data);
+
+gboolean mojito_keyfob_facebook_sync (FacebookProxy *proxy);
 
 G_END_DECLS
 

@@ -121,6 +121,7 @@ AM_CONDITIONAL([WITH_TWITTER], [test x$with_twitter = xyes])
 
 MOJITO_OAUTH_KEYS(MySpace, myspace, MYSPACE)
 MOJITO_OAUTH_KEYS(Flickr, flickr, FLICKR)
+MOJITO_OAUTH_KEYS(Facebook, facebook, FACEBOOK)
 
 
 servicesdir='${libdir}'/mojito/services
@@ -147,6 +148,7 @@ AC_OUTPUT([
         services/lastfm/Makefile
         services/twitter/Makefile
         services/myspace/Makefile
+        services/facebook/Makefile
         tests/Makefile
         tools/Makefile
         examples/Makefile

@@ -1,0 +1,5 @@
+[MojitoService]
+_Name=Facebook
+_Description=Facebook - social networking for snobs
+Link=http://www.facebook.com/
+AuthType=facebook

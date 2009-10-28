@@ -15,3 +15,7 @@ endif
 if WITH_MYSPACE
 SUBDIRS += myspace
 endif
+
+if WITH_FACEBOOK
+SUBDIRS += facebook
+endif
