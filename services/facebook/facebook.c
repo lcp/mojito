@@ -41,6 +41,7 @@ G_DEFINE_TYPE (MojitoServiceFacebook, mojito_service_facebook, MOJITO_TYPE_SERVI
 
 struct _MojitoServiceFacebookPrivate {
   gboolean running;
+  gboolean connected;
   RestProxy *proxy;
   char *uid;
   char *display_name;
@@ -334,7 +335,7 @@ sync_auth (MojitoServiceFacebook *facebook)
   MojitoService *service = (MojitoService *)facebook;
   MojitoServiceFacebookPrivate *priv = facebook->priv;
 
-  if (priv->uid == NULL || priv->pic_square == NULL ) {
+  if (priv->uid == NULL || priv->pic_square == NULL || priv->connected == FALSE ) {
     RestProxyCall *call;
     RestXmlNode *node;
 
@@ -369,6 +370,7 @@ sync_auth (MojitoServiceFacebook *facebook)
     priv->pic_square = get_child_node_value (node, "pic_square");
     rest_xml_node_unref (node);
 
+    priv->connected = TRUE;
     mojito_service_emit_capabilities_changed (service, get_dynamic_caps (service));
   }
 
@@ -492,11 +494,20 @@ static void
 online_notify (gboolean online, gpointer user_data)
 {
   MojitoServiceFacebook *service = (MojitoServiceFacebook *) user_data;
+  MojitoServiceFacebookPrivate *priv = service->priv;
 
   if (online) {
+    const char *key = NULL, *secret = NULL;
+    mojito_keystore_get_key_secret ("facebook", &key, &secret);
+    priv->proxy = facebook_proxy_new (key, secret);
     sync_auth (service);
   } else {
     mojito_service_emit_capabilities_changed ((MojitoService *)service, NULL);
+    priv->connected = FALSE;
+    if (priv->proxy) {
+      g_object_unref (priv->proxy);
+      priv->proxy = NULL;
+    }
   }
 }
 
@@ -552,6 +563,7 @@ mojito_service_facebook_init (MojitoServiceFacebook *self)
   const char *key = NULL, *secret = NULL;
 
   priv = self->priv = GET_PRIVATE (self);
+  priv->connected = FALSE;
 
   mojito_keystore_get_key_secret ("facebook", &key, &secret);
 
