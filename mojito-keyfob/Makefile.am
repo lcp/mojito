@@ -10,7 +10,8 @@ libmojito_keyfob_la_LIBADD = $(DBUS_GLIB_LIBS) $(KEYRING_LIBS) $(REST_LIBS)
 libmojito_keyfob_la_SOURCES = \
 	mojito-keyfob.h \
 	mojito-keyfob-flickr.c \
-	mojito-keyfob-oauth.c
+	mojito-keyfob-oauth.c \
+	mojito-keyfob-facebook.c
 
 libmojito_keyfob_la_HEADERS = \
 	mojito-keyfob.h

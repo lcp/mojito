@@ -52,6 +52,9 @@ static const Keys keys[] = {
 #ifdef DIGG_APIKEY
   { "digg", DIGG_APIKEY, NULL },
 #endif
+#ifdef FACEBOOK_APIKEY
+  { "facebook", FACEBOOK_APIKEY, FACEBOOK_SECRET },
+#endif
   { NULL }
 };
 
@@ -148,6 +151,13 @@ test_key_secret (void)
   g_assert (ret == TRUE);
   g_assert_cmpstr (key, ==, DIGG_APIKEY);
   g_assert (secret == NULL);
+
+  key = secret = NULL;
+  ret = mojito_keystore_get_key_secret ("facebook", &key, &secret);
+  g_assert (ret == TRUE);
+  g_assert_cmpstr (key, ==, FACEBOOK_APIKEY);
+  g_assert (secret == NULL);
+
 }
 
 static void
@@ -169,6 +179,9 @@ test_key (void)
 
   key = mojito_keystore_get_key ("digg");
   g_assert_cmpstr (key, ==, DIGG_APIKEY);
+
+  key = mojito_keystore_get_key ("facebook");
+  g_assert_cmpstr (key, ==, FACEBOOK_APIKEY);
 }
 
 int

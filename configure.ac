@@ -104,6 +104,7 @@ MOJITO_OAUTH_KEYS(Flickr, flickr, FLICKR)
 MOJITO_API_KEY(Last.fm, lastfm, LASTFM)
 MOJITO_OAUTH_KEYS(MySpace, myspace, MYSPACE)
 MOJITO_OAUTH_KEYS(Twitter, twitter, TWITTER)
+MOJITO_OAUTH_KEYS(Facebook, facebook, FACEBOOK)
 
 
 servicesdir='${libdir}'/mojito/services
@@ -131,6 +132,7 @@ AC_OUTPUT([
         services/twitter/Makefile
         services/myspace/Makefile
         services/digg/Makefile
+        services/facebook/Makefile
         tests/Makefile
         tools/Makefile
         examples/Makefile
