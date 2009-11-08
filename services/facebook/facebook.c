@@ -510,7 +510,9 @@ online_notify (gboolean online, gpointer user_data)
     const char *key = NULL, *secret = NULL;
     mojito_keystore_get_key_secret ("facebook", &key, &secret);
     priv->proxy = facebook_proxy_new (key, secret);
-    sync_auth (service);
+    //TODO Check sync_auth()
+    //sync_auth (service);
+    mojito_keyfob_facebook ((FacebookProxy *)priv->proxy, got_tokens_cb, service);
   } else {
     mojito_service_emit_capabilities_changed ((MojitoService *)service, NULL);
 
