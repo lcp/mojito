@@ -284,7 +284,7 @@ get_dynamic_caps (MojitoService *service)
   static const char * no_caps[] = { NULL };
 
 //  if (sync_auth (facebook))
-  if (facebook->priv->user_id)
+  if (facebook->priv->uid)
     return caps;
   else
     return no_caps;
@@ -298,7 +298,7 @@ got_user_cb (RestProxyCall *call,
 {
   MojitoService *service = MOJITO_SERVICE (weak_object);
   MojitoServiceFacebook *facebook = MOJITO_SERVICE_FACEBOOK (service);
-  MojitoServiceFacebookPrivate *priv = service->priv;
+  MojitoServiceFacebookPrivate *priv = facebook->priv;
   RestXmlNode *node;
 
   if (error) {
@@ -310,8 +310,7 @@ got_user_cb (RestProxyCall *call,
   if (!node)
     return;
 
-//  priv->uid = g_strdup (node->content);
-  priv->uid = get_child_node_value ("uid", node);
+  priv->uid = g_strdup (node->content);
   rest_xml_node_unref (node);
 
   mojito_service_emit_capabilities_changed
@@ -449,7 +448,18 @@ request_avatar (MojitoService *service)
   }
 }
 
-static gboolean
+static void
+_status_updated_cb (RestProxyCall *call,
+                    const GError  *error,
+                    GObject       *weak_object,
+                    gpointer       userdata)
+{
+  MojitoService *service = MOJITO_SERVICE (weak_object);
+
+  mojito_service_emit_status_updated (service, error == NULL);
+}
+
+static void
 update_status (MojitoService *service, const char *msg)
 {
   MojitoServiceFacebook *facebook = MOJITO_SERVICE_FACEBOOK (service);
@@ -470,15 +480,15 @@ update_status (MojitoService *service, const char *msg)
 
   /* TODO replaced with rest_proxy_call_async */
   if (!rest_proxy_call_run (call, NULL, NULL))
-    return FALSE;
+    return;
 
   node = node_from_call (call);
   if (!node)
-    return FALSE;
+    return;
 
   if (g_strcmp0(node->content, "0") == 0){
     rest_xml_node_unref (node);
-    return FALSE;
+    return;
   }
   rest_xml_node_unref (node);
 
@@ -486,12 +496,7 @@ update_status (MojitoService *service, const char *msg)
   rest_proxy_call_set_function (call, "Status.set");
   rest_proxy_call_add_param (call, "status", msg);
 
-  /* TODO replaced with rest_proxy_call_async */
-  ret = rest_proxy_call_run (call, NULL, NULL);
-
-  g_object_unref (call);
-
-  return ret;
+  rest_proxy_call_async (call, _status_updated_cb, (GObject *)service, NULL, NULL);
 }
 
 static const char *
