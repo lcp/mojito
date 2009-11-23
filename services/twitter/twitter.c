@@ -26,6 +26,7 @@
 #include <mojito/mojito-online.h>
 #include <mojito/mojito-utils.h>
 #include <mojito/mojito-web.h>
+#include <mojito/mojito-debug.h>
 #include <mojito-keyfob/mojito-keyfob.h>
 #include <mojito-keystore/mojito-keystore.h>
 #include <gconf/gconf-client.h>
@@ -114,8 +115,6 @@ node_from_call (RestProxyCall *call)
                                           rest_proxy_call_get_payload (call),
                                           rest_proxy_call_get_payload_length (call));
 
-  g_object_unref (call);
-
   if (root == NULL) {
     g_message ("Error from Twitter: %s",
                rest_proxy_call_get_payload (call));
@@ -198,7 +197,7 @@ make_item (MojitoServiceTwitter *twitter, RestXmlNode *node)
     /* Construct the thumbnail URL and download the image */
     twitpic_id = g_match_info_fetch (match_info, 1);
     url = g_strconcat ("http://twitpic.com/show/thumb/", twitpic_id, NULL);
-    mojito_item_take (item, "thumbnail", mojito_web_download_image (url));
+    mojito_item_request_image_fetch (item, "thumbnail", url);
     g_free (url);
 
     /* Remove the URL from the tweet and use that as the title */
@@ -229,7 +228,8 @@ make_item (MojitoServiceTwitter *twitter, RestXmlNode *node)
 
   n = rest_xml_node_find (u_node, "profile_image_url");
   if (n && n->content)
-    mojito_item_take (item, "authoricon", mojito_web_download_image (n->content));
+    mojito_item_request_image_fetch (item, "authoricon", n->content);
+
 
   return item;
 }
@@ -255,6 +255,8 @@ tweets_cb (RestProxyCall *call,
 
   set = mojito_item_set_new ();
 
+  MOJITO_DEBUG (TWITTER, "Got tweets!");
+
   for (node = rest_xml_node_find (root, "status"); node; node = node->next) {
     MojitoItem *item;
     /* TODO: skip the user's own tweets */
@@ -279,6 +281,8 @@ get_status_updates (MojitoServiceTwitter *twitter)
 
   if (!priv->user_id || !priv->running)
     return;
+
+  MOJITO_DEBUG (TWITTER, "Got status updates");
 
   call = rest_proxy_new_call (priv->proxy);
   switch (priv->type) {
@@ -363,6 +367,8 @@ verify_cb (RestProxyCall *call,
     return;
   }
 
+  MOJITO_DEBUG (TWITTER, "Authentication verified");
+
   node = node_from_call (call);
   if (!node)
     return;
@@ -386,6 +392,7 @@ got_tokens_cb (RestProxy *proxy, gboolean authorised, gpointer user_data)
   RestProxyCall *call;
 
   if (authorised) {
+    MOJITO_DEBUG (TWITTER, "Authorised");
     call = rest_proxy_new_call (priv->proxy);
     rest_proxy_call_set_function (call, "account/verify_credentials.xml");
     rest_proxy_call_async (call, verify_cb, (GObject*)twitter, NULL, NULL);
@@ -411,15 +418,18 @@ refresh (MojitoService *service)
   if (!priv->running)
     return;
 
+#if TWITTER_USE_OAUTH
   if (priv->user_id) {
     get_status_updates (twitter);
   } else {
-#if TWITTER_USE_OAUTH
     mojito_keyfob_oauth ((OAuthProxy*)priv->proxy, got_tokens_cb, service);
-#else
-    got_tokens_cb (priv->proxy, TRUE, twitter);
-#endif
   }
+#else
+  if (priv->username && priv->password && priv->proxy)
+  {
+    got_tokens_cb (priv->proxy, TRUE, twitter);
+  }
+#endif
 }
 
 static void
@@ -483,6 +493,8 @@ online_notify (gboolean online, gpointer user_data)
   MojitoServiceTwitter *twitter = (MojitoServiceTwitter *)user_data;
   MojitoServiceTwitterPrivate *priv = twitter->priv;
 
+  MOJITO_DEBUG (TWITTER, "Online: %s", online ? "yes" : "no");
+
   if (online) {
 #if TWITTER_USE_OAUTH
     const char *key = NULL, *secret = NULL;
@@ -493,8 +505,22 @@ online_notify (gboolean online, gpointer user_data)
 #else
     if (priv->username && priv->password) {
       char *url;
+      char *escaped_user;
+      char *escaped_password;
+
+      escaped_user = g_uri_escape_string (priv->username,
+                                          NULL,
+                                          FALSE);
+      escaped_password = g_uri_escape_string (priv->password,
+                                          NULL,
+                                          FALSE);
+
       url = g_strdup_printf ("https://%s:%s@twitter.com/",
-                             priv->username, priv->password);
+                             escaped_user, escaped_password);
+
+      g_free (escaped_user);
+      g_free (escaped_password);
+
       priv->proxy = rest_proxy_new (url, FALSE);
       g_free (url);
 
@@ -518,6 +544,8 @@ online_notify (gboolean online, gpointer user_data)
 static void
 credentials_updated (MojitoService *service)
 {
+  MOJITO_DEBUG (TWITTER, "Credentials updated");
+
   /* If we're online, force a reconnect to fetch new credentials */
   if (mojito_is_online ()) {
     online_notify (FALSE, service);

@@ -16,29 +16,19 @@
  * Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <config.h>
 #include <glib.h>
+#include <rest/rest-proxy.h>
 
-#include "mojito-debug.h"
+typedef struct _MojitoCallList MojitoCallList;
 
-guint mojito_debug_flags;
+MojitoCallList * mojito_call_list_new (void);
 
-void
-mojito_debug_init (const char *string)
-{
-  static gboolean setup_done = FALSE;
-  static const GDebugKey keys[] = {
-    { "main-loop", MOJITO_DEBUG_MAIN_LOOP },
-    { "views", MOJITO_DEBUG_VIEWS },
-    { "online", MOJITO_DEBUG_ONLINE },
-    { "item", MOJITO_DEBUG_ITEM },
-    { "twitter", MOJITO_DEBUG_TWITTER }
-  };
+void mojito_call_list_free (MojitoCallList *list);
 
-  if (G_LIKELY (setup_done))
-    return;
+void mojito_call_list_add (MojitoCallList *list, RestProxyCall *call);
 
-  mojito_debug_flags = g_parse_debug_string (string, keys, G_N_ELEMENTS (keys));
+void mojito_call_list_remove (MojitoCallList *list, RestProxyCall *call);
 
-  setup_done = TRUE;
-}
+gboolean mojito_call_list_is_empty (MojitoCallList *list);
+
+void mojito_call_list_cancel_all (MojitoCallList *list);

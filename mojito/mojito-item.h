@@ -66,6 +66,8 @@ void mojito_item_put (MojitoItem *item, const char *key, const char *value);
 
 void mojito_item_take (MojitoItem *item, const char *key, char *value);
 
+void mojito_item_request_image_fetch (MojitoItem *item, const gchar *key, const gchar *url);
+
 const char * mojito_item_get (MojitoItem *item, const char *key);
 
 int mojito_item_compare_date_older (MojitoItem *a, MojitoItem *b);
@@ -75,6 +77,12 @@ int mojito_item_compare_date_newer (MojitoItem *a, MojitoItem *b);
 void mojito_item_dump (MojitoItem *item);
 
 GHashTable *mojito_item_peek_hash (MojitoItem *item);
+
+gboolean mojito_item_get_ready (MojitoItem *item);
+
+void mojito_item_push_pending (MojitoItem *item);
+void mojito_item_pop_pending (MojitoItem *item);
+
 
 /* Convenience function */
 MojitoSet * mojito_item_set_new (void);

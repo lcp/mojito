@@ -17,7 +17,9 @@
  */
 
 #include <mojito/mojito-utils.h>
+#include <mojito/mojito-web.h>
 #include "mojito-item.h"
+#include "mojito-debug.h"
 
 G_DEFINE_TYPE (MojitoItem, mojito_item, G_TYPE_OBJECT)
 
@@ -29,6 +31,13 @@ struct _MojitoItemPrivate {
   MojitoService *service;
   GHashTable *hash;
   time_t cached_date;
+  gint remaining_fetches;
+};
+
+enum
+{
+  PROP_0,
+  PROP_READY
 };
 
 static void
@@ -46,13 +55,41 @@ mojito_item_dispose (GObject *object)
 }
 
 static void
+mojito_item_get_property (GObject    *object,
+                          guint       property_id,
+                          GValue     *value,
+                          GParamSpec *pspec)
+{
+  MojitoItem *item = MOJITO_ITEM (object);
+
+  switch (property_id)
+  {
+    case PROP_READY:
+      g_value_set_boolean (value, mojito_item_get_ready (item));
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+  }
+}
+
+
+static void
 mojito_item_class_init (MojitoItemClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
+  GParamSpec *pspec;
 
   g_type_class_add_private (klass, sizeof (MojitoItemPrivate));
 
   object_class->dispose = mojito_item_dispose;
+  object_class->get_property = mojito_item_get_property;
+
+  pspec = g_param_spec_boolean ("ready",
+                                "ready",
+                                "Whether item is ready to set out",
+                                FALSE,
+                                G_PARAM_READABLE);
+  g_object_class_install_property (object_class, PROP_READY, pspec);
 }
 
 static void
@@ -203,4 +240,70 @@ mojito_item_peek_hash (MojitoItem *item)
   g_return_val_if_fail (MOJITO_IS_ITEM (item), NULL);
 
   return item->priv->hash;
+}
+
+gboolean
+mojito_item_get_ready (MojitoItem *item)
+{
+  return (item->priv->remaining_fetches == 0);
+}
+
+void
+mojito_item_push_pending (MojitoItem *item)
+{
+  g_atomic_int_inc (&(item->priv->remaining_fetches));
+}
+
+void
+mojito_item_pop_pending (MojitoItem *item)
+{
+  if (g_atomic_int_dec_and_test (&(item->priv->remaining_fetches))) {
+    MOJITO_DEBUG (ITEM, "All outstanding fetches completed. Signalling ready: %s",
+                  mojito_item_get (item, "id"));
+    g_object_notify (G_OBJECT (item), "ready");
+  }
+}
+
+
+typedef struct {
+  MojitoItem *item;
+  const gchar *key;
+} RequestImageFetchClosure;
+
+static void
+_image_download_cb (const char               *url,
+                    char                     *file,
+                    RequestImageFetchClosure *closure)
+{
+  MOJITO_DEBUG (ITEM, "Image fetched: %s to %s", url, file);
+  mojito_item_take (closure->item,
+                    closure->key,
+                    file);
+
+  mojito_item_pop_pending (closure->item);
+
+  g_object_unref (closure->item);
+  g_slice_free (RequestImageFetchClosure, closure);
+}
+
+void
+mojito_item_request_image_fetch (MojitoItem  *item,
+                                 const gchar *key,
+                                 const gchar *url)
+{
+  RequestImageFetchClosure *closure;
+
+  mojito_item_push_pending (item);
+
+  closure = g_slice_new0 (RequestImageFetchClosure);
+
+  closure->key = g_intern_string (key);
+  closure->item = g_object_ref (item);
+
+  MOJITO_DEBUG (ITEM, "Scheduling fetch for %s on: %s",
+                url,
+                mojito_item_get (closure->item, "id"));
+  mojito_web_download_image_async (url,
+                                   (ImageDownloadCallback)_image_download_cb,
+                                   closure);
 }
