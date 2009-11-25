@@ -177,10 +177,9 @@ got_status_cb (RestProxyCall *call,
     else
       mojito_item_put (item, "author", priv->display_name);
 
-    /* TODO: async downloading */
     subnode = rest_xml_node_find (node, "pic_square");
     if (subnode && subnode->content)
-      mojito_item_take (item, "authoricon", mojito_web_download_image (subnode->content));
+      mojito_item_request_image_fetch (item, "authoricon", subnode->content);
 
     subnode = rest_xml_node_find (node, "profile_url");
     if (subnode && subnode->content)
@@ -283,7 +282,6 @@ get_dynamic_caps (MojitoService *service)
   };
   static const char * no_caps[] = { NULL };
 
-//  if (sync_auth (facebook))
   if (facebook->priv->uid)
     return caps;
   else
@@ -360,68 +358,6 @@ refresh (MojitoService *service)
   }
 }
 
-/*TODO review this function!!!*/
-static gboolean
-sync_auth (MojitoServiceFacebook *facebook)
-{
-  MojitoService *service = (MojitoService *)facebook;
-  MojitoServiceFacebookPrivate *priv = facebook->priv;
-
-  if (priv->uid == NULL || priv->pic_square == NULL) {
-    RestProxyCall *call;
-    RestXmlNode *node;
-
-    if (!mojito_keyfob_facebook_sync ((FacebookProxy*)priv->proxy)) {
-      g_debug ("cannot get keys from keyfob");
-      return FALSE;
-    }
-
-    call = rest_proxy_new_call (priv->proxy);
-    rest_proxy_call_set_function (call, "users.getLoggedInUser");
-    if (!rest_proxy_call_run (call, NULL, NULL))
-      return FALSE;
-
-    node = node_from_call (call);
-    if (!node)
-      return FALSE;
-
-    priv->uid = g_strdup (node->content);
-    rest_xml_node_unref (node);
-
-    call = rest_proxy_new_call (priv->proxy);
-    rest_proxy_call_set_function (call, "Users.getInfo");
-    rest_proxy_call_add_param (call, "uids", priv->uid);
-    rest_proxy_call_add_param (call, "fields", "pic_square");
-    if (!rest_proxy_call_run (call, NULL, NULL))
-      return FALSE;
-
-    node = node_from_call (call);
-    if (!node)
-      return FALSE;
-
-    priv->pic_square = get_child_node_value (node, "pic_square");
-    rest_xml_node_unref (node);
-
-    mojito_service_emit_capabilities_changed (service, get_dynamic_caps (service));
-  }
-
-  return TRUE;
-}
-
-
-/*
-static gchar *
-get_persona_icon (MojitoService *service)
-{
-  MojitoServiceFacebook *facebook = MOJITO_SERVICE_FACEBOOK (service);
-  MojitoServiceFacebookPrivate *priv = facebook->priv;
-
-  if (sync_auth (facebook))
-    return mojito_web_download_image (priv->pic_square);
-  else
-    return NULL;
-}
-*/
 static void
 _avatar_downloaded_cb (const gchar *uri,
                        gchar       *local_path,
@@ -468,9 +404,6 @@ update_status (MojitoService *service, const char *msg)
   RestXmlNode *node;
   gboolean ret;
 
-//  if (!sync_auth (facebook))
-//    return FALSE;
-
   if (!priv->proxy)
     return;
 
@@ -515,8 +448,6 @@ online_notify (gboolean online, gpointer user_data)
     const char *key = NULL, *secret = NULL;
     mojito_keystore_get_key_secret ("facebook", &key, &secret);
     priv->proxy = facebook_proxy_new (key, secret);
-    //TODO Check sync_auth()
-    //sync_auth (service);
     mojito_keyfob_facebook ((FacebookProxy *)priv->proxy, got_tokens_cb, service);
   } else {
     mojito_service_emit_capabilities_changed ((MojitoService *)service, NULL);
