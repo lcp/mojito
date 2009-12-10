@@ -145,32 +145,45 @@ got_status_cb (RestProxyCall *call,
   while (node) {
     MojitoItem *item;
     char *id, *content;
-    RestXmlNode *subnode, *status_node;
+    RestXmlNode *subnode, *status_node, *time_node, *uid_node;
 
     item = mojito_item_new ();
     mojito_item_set_service (item, service);
 
+    uid_node = rest_xml_node_find (node, "uid");
     status_node = rest_xml_node_find (node, "status");
-    content = rest_xml_node_find (status_node, "message")->content;
-
-    if (content == NULL) {
+    if(!uid_node || !uid_node->content || 
+       !status_node || !status_node->content){
       node = node->next;
       continue;
     }
 
-    mojito_item_put (item, "content", content);
+    time_node = rest_xml_node_find (status_node, "time");  
+    if(!time_node || !time_node->content){
+      node = node->next;
+      continue;
+    }
 
+    /* Construct item ID */
     id = g_strconcat ("facebook-",
-                      rest_xml_node_find (node, "uid")->content,
+                      uid_node->content,
                       "-",
-                      rest_xml_node_find (status_node, "time")->content,
+                      time_node->content,
                       NULL);
     mojito_item_take (item, "id", id);
 
-    mojito_item_take (item, "date",
-                      get_utc_date (rest_xml_node_find (status_node, "time")->content));
+    mojito_item_take (item, "date", get_utc_date (time_node->content));
 
-    mojito_item_put (item, "authorid", rest_xml_node_find (node, "uid")->content);
+    /* Get the status message */
+    subnode = rest_xml_node_find (status_node, "message");
+    if (!subnode || !subnode->content) {
+      node = node->next;
+      continue;
+    }
+    content = subnode->content;
+    mojito_item_put (item, "content", content);
+
+    mojito_item_put (item, "authorid", uid_node->content);
     subnode = rest_xml_node_find (node, "name");
     if (subnode && subnode->content)
       mojito_item_put (item, "author", subnode->content);
