@@ -144,7 +144,7 @@ got_status_cb (RestProxyCall *call,
 
   while (node) {
     MojitoItem *item;
-    char *id, *content;
+    char *id;
     RestXmlNode *subnode, *status_node, *time_node, *uid_node;
 
     item = mojito_item_new ();
@@ -180,8 +180,7 @@ got_status_cb (RestProxyCall *call,
       node = node->next;
       continue;
     }
-    content = subnode->content;
-    mojito_item_put (item, "content", content);
+    mojito_item_put (item, "content", subnode->content);
 
     mojito_item_put (item, "authorid", uid_node->content);
     subnode = rest_xml_node_find (node, "name");
