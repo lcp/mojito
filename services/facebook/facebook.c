@@ -88,6 +88,29 @@ node_from_call (RestProxyCall *call)
   }
 }
 
+/*
+ * For a given parent @node, get the child node called @name and return a copy
+ * of the content, or NULL. If the content is the empty string, NULL is
+ * returned.
+ */
+static char *
+get_child_node_value (RestXmlNode *node, const char *name)
+{
+  RestXmlNode *subnode;
+
+  if (!node || !name)
+    return NULL;
+
+  subnode = rest_xml_node_find (node, name);
+  if (!subnode)
+    return NULL;
+
+  if (subnode->content && subnode->content[0])
+    return g_strdup (subnode->content);
+  else
+    return NULL;
+}
+
 static char *
 get_utc_date (const char *s)
 {
@@ -144,58 +167,52 @@ got_status_cb (RestProxyCall *call,
 
   while (node) {
     MojitoItem *item;
-    char *id;
-    RestXmlNode *subnode, *status_node, *time_node, *uid_node;
+    char *id, *uid, *time, *message, *name, *pic_square, *profile_url;
+    RestXmlNode *status_node;
 
     item = mojito_item_new ();
     mojito_item_set_service (item, service);
 
-    uid_node = rest_xml_node_find (node, "uid");
+    uid = get_child_node_value (node, "uid");
     status_node = rest_xml_node_find (node, "status");
-    if(!uid_node || !uid_node->content || 
-       !status_node || !status_node->content){
+    if(!uid || !status_node){
       node = node->next;
       continue;
     }
 
-    time_node = rest_xml_node_find (status_node, "time");  
-    if(!time_node || !time_node->content){
+    time = get_child_node_value (status_node, "time");
+    if(!time){
       node = node->next;
       continue;
     }
 
     /* Construct item ID */
-    id = g_strconcat ("facebook-",
-                      uid_node->content,
-                      "-",
-                      time_node->content,
-                      NULL);
+    id = g_strconcat ("facebook-", uid, "-", time, NULL);
     mojito_item_take (item, "id", id);
 
-    mojito_item_take (item, "date", get_utc_date (time_node->content));
+    mojito_item_take (item, "date", get_utc_date (time));
 
     /* Get the status message */
-    subnode = rest_xml_node_find (status_node, "message");
-    if (!subnode || !subnode->content) {
+    message = get_child_node_value (status_node, "message");
+    if (!message) {
       node = node->next;
       continue;
     }
-    mojito_item_put (item, "content", subnode->content);
-
-    mojito_item_put (item, "authorid", uid_node->content);
-    subnode = rest_xml_node_find (node, "name");
-    if (subnode && subnode->content)
-      mojito_item_put (item, "author", subnode->content);
+    mojito_item_put (item, "content", message);
+    mojito_item_put (item, "authorid", uid);
+    name = get_child_node_value (node, "name");
+    if (name)
+      mojito_item_put (item, "author", name);
     else
       mojito_item_put (item, "author", priv->display_name);
 
-    subnode = rest_xml_node_find (node, "pic_square");
-    if (subnode && subnode->content)
-      mojito_item_request_image_fetch (item, "authoricon", subnode->content);
+    pic_square = get_child_node_value (node, "pic_square");
+    if (pic_square)
+      mojito_item_request_image_fetch (item, "authoricon", pic_square);
 
-    subnode = rest_xml_node_find (node, "profile_url");
-    if (subnode && subnode->content)
-      mojito_item_put (item, "url", subnode->content);
+    profile_url = get_child_node_value (node, "profile_url");
+    if (profile_url)
+      mojito_item_put (item, "url", profile_url);
     else
       mojito_item_put (item, "url", priv->profile_url);
 
@@ -246,29 +263,6 @@ get_status_updates (MojitoServiceFacebook *service)
     g_hash_table_unref (params);
 
   rest_proxy_call_async (call, got_status_cb, (GObject*)service, NULL, NULL);
-}
-
-/*
- * For a given parent @node, get the child node called @name and return a copy
- * of the content, or NULL. If the content is the empty string, NULL is
- * returned.
- */
-static char *
-get_child_node_value (RestXmlNode *node, const char *name)
-{
-  RestXmlNode *subnode;
-
-  g_assert (node);
-  g_assert (name);
-
-  subnode = rest_xml_node_find (node, name);
-  if (!subnode)
-    return NULL;
-
-  if (subnode->content && subnode->content[0])
-    return g_strdup (subnode->content);
-  else
-    return NULL;
 }
 
 static const char **
