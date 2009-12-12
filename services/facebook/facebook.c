@@ -402,30 +402,24 @@ _status_updated_cb (RestProxyCall *call,
 }
 
 static void
-update_status (MojitoService *service, const char *msg)
+_got_permission_check_cb (RestProxyCall *call,
+                          const GError  *error,
+                          GObject       *weak_object,
+                          gpointer       userdata)
 {
+  MojitoService *service = MOJITO_SERVICE (weak_object);
   MojitoServiceFacebook *facebook = MOJITO_SERVICE_FACEBOOK (service);
   MojitoServiceFacebookPrivate *priv = facebook->priv;
   RestProxyCall *call;
   RestXmlNode *node;
   gboolean ret;
 
-  if (!priv->proxy)
-    return;
-
-  call = rest_proxy_new_call (priv->proxy);
-  rest_proxy_call_set_function (call, "Users.hasAppPermission");
-  rest_proxy_call_add_param (call, "ext_perm", "publish_stream");
-
-  /* TODO replaced with rest_proxy_call_async */
-  if (!rest_proxy_call_run (call, NULL, NULL))
-    return;
-
   node = node_from_call (call);
-  if (!node)
+  if (!node || !node->content)
     return;
 
   if (g_strcmp0(node->content, "0") == 0){
+    /* TODO Launch Permission Request Page */
     rest_xml_node_unref (node);
     return;
   }
@@ -436,6 +430,28 @@ update_status (MojitoService *service, const char *msg)
   rest_proxy_call_add_param (call, "status", msg);
 
   rest_proxy_call_async (call, _status_updated_cb, (GObject *)service, NULL, NULL);
+
+}
+
+static void
+update_status (MojitoService *service, const char *msg)
+{
+  MojitoServiceFacebook *facebook = MOJITO_SERVICE_FACEBOOK (service);
+  MojitoServiceFacebookPrivate *priv = facebook->priv;
+  RestProxyCall *call;
+
+  if (!priv->proxy)
+    return;
+
+  call = rest_proxy_new_call (priv->proxy);
+  rest_proxy_call_set_function (call, "Users.hasAppPermission");
+  rest_proxy_call_add_param (call, "ext_perm", "publish_stream");
+
+  rest_proxy_call_async (call,
+                         _got_permission_check_cb,
+			 (GObject *)service,
+			 NULL,
+			 NULL);
 }
 
 static const char *
