@@ -262,10 +262,10 @@ get_status_updates (MojitoServiceFacebook *service)
   if (params)
     g_hash_table_unref (params);
 
-  rest_proxy_call_async (call, 
-                         (RestProxyCallAsyncCallback)got_status_cb, 
-                         (GObject*)service, 
-                         NULL, 
+  rest_proxy_call_async (call,
+                         (RestProxyCallAsyncCallback)got_status_cb,
+                         (GObject*)service,
+                         NULL,
                          NULL);
 }
 
@@ -338,10 +338,10 @@ got_tokens_cb (RestProxy *proxy, gboolean authorised, gpointer user_data)
   if (authorised) {
     call = rest_proxy_new_call (priv->proxy);
     rest_proxy_call_set_function (call, "users.getLoggedInUser");
-    rest_proxy_call_async (call, 
-                           (RestProxyCallAsyncCallback)got_user_cb, 
-                           (GObject*)facebook, 
-                           NULL, 
+    rest_proxy_call_async (call,
+                           (RestProxyCallAsyncCallback)got_user_cb,
+                           (GObject*)facebook,
+                           NULL,
                            NULL);
   } else {
     mojito_service_emit_refreshed ((MojitoService *)facebook, NULL);
@@ -419,7 +419,7 @@ _got_permission_check_cb (RestProxyCall *call,
   MojitoServiceFacebook *facebook = MOJITO_SERVICE_FACEBOOK (service);
   MojitoServiceFacebookPrivate *priv = facebook->priv;
   RestXmlNode *node;
-  const char *msg = (char *)userdata;
+  gchar *status_msg = (gchar *)userdata;
 
   node = node_from_call (call);
   if (!node || !node->content)
@@ -434,14 +434,14 @@ _got_permission_check_cb (RestProxyCall *call,
 
   call = rest_proxy_new_call (priv->proxy);
   rest_proxy_call_set_function (call, "Status.set");
-  rest_proxy_call_add_param (call, "status", msg);
+  rest_proxy_call_add_param (call, "status", status_msg);
 
-  rest_proxy_call_async (call, 
-                         (RestProxyCallAsyncCallback)_status_updated_cb, 
-                         (GObject *)service, 
-                         NULL, 
+  rest_proxy_call_async (call,
+                         (RestProxyCallAsyncCallback)_status_updated_cb,
+                         (GObject *)service,
+                         NULL,
                          NULL);
-
+  g_free(status_msg);
 }
 
 static void
@@ -461,7 +461,7 @@ update_status (MojitoService *service, const char *msg)
   rest_proxy_call_async (call,
                          (RestProxyCallAsyncCallback)_got_permission_check_cb,
 			 (GObject *)service,
-			 (gpointer)msg,
+			 (gpointer)g_strdup(msg),
 			 NULL);
 }
 
