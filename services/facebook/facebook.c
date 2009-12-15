@@ -353,6 +353,9 @@ got_user_cb (RestProxyCall *call,
   priv->uid = g_strdup (node->content);
   rest_xml_node_unref (node);
 
+  if(!priv->uid)
+    return;
+
   call = rest_proxy_new_call (priv->proxy);
   rest_proxy_call_set_function (call, "Users.getInfo");
   rest_proxy_call_add_params (call,
