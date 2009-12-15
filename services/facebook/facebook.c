@@ -299,6 +299,38 @@ get_dynamic_caps (MojitoService *service)
 }
 
 static void
+got_user_info_cb (RestProxyCall *call,
+                  const GError  *error,
+                  GObject       *weak_object,
+                  gpointer       userdata)
+{
+  MojitoService *service = MOJITO_SERVICE (weak_object);
+  MojitoServiceFacebook *facebook = MOJITO_SERVICE_FACEBOOK (service);
+  MojitoServiceFacebookPrivate *priv = facebook->priv;
+  RestXmlNode *node;
+
+  if (error) {
+    g_message ("Error: %s", error->message);
+    return;
+  }
+
+  node = node_from_call (call);
+  if (!node)
+    return;
+
+  priv->display_name = get_child_node_value(node, "name");
+  priv->profile_url = get_child_node_value(node, "profile_url");
+  priv->pic_square = get_child_node_value(node, "pic_square");
+  rest_xml_node_unref (node);
+
+  mojito_service_emit_capabilities_changed
+    (service, get_dynamic_caps (service));
+
+  if (priv->running)
+    get_status_updates (facebook);
+}
+
+static void
 got_user_cb (RestProxyCall *call,
              const GError  *error,
              GObject       *weak_object,
@@ -321,11 +353,18 @@ got_user_cb (RestProxyCall *call,
   priv->uid = g_strdup (node->content);
   rest_xml_node_unref (node);
 
-  mojito_service_emit_capabilities_changed
-    (service, get_dynamic_caps (service));
+  call = rest_proxy_new_call (priv->proxy);
+  rest_proxy_call_set_function (call, "Users.getInfo");
+  rest_proxy_call_add_params (call,
+                              "uids", priv->uid,
+                              "fields", "name, profile_url, pic_square",
+                              NULL);
 
-  if (priv->running)
-    get_status_updates (facebook);
+  rest_proxy_call_async (call,
+                         (RestProxyCallAsyncCallback)got_user_info_cb,
+                         (GObject*)service,
+                         NULL,
+                         NULL);
 }
 
 static void
