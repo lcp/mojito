@@ -98,10 +98,10 @@ get_utc_date (const char *s)
   if (s == NULL)
     return NULL;
 
-  strptime (s, "%d/%m/%Y %T", &tm);
+  strptime (s, "%Y-%m-%dT%T", &tm);
   t = mktime (&tm);
   /* TODO: This is a very bad timezone correction */
-  t += (8 * 60 * 60); /* 8 hours */
+  t += (24 * 60 * 60); /* 24 hours */
 
   return mojito_time_t_to_string (t);
 }
@@ -218,6 +218,10 @@ get_status_updates (MojitoServiceMySpace *service)
 
   g_object_get (service, "params", &params, NULL);
 
+  rest_proxy_call_add_params(call, 
+                             "dateFormat", "GMT",
+                             "timeZone", "0",
+                             NULL);
   if (params && g_hash_table_lookup (params, "own")) {
     function = g_strdup_printf ("v1/users/%s/status", priv->user_id);
     rest_proxy_call_set_function (call, function);
