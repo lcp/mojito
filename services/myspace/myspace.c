@@ -376,8 +376,18 @@ request_avatar (MojitoService *service)
 {
   MojitoServiceMySpacePrivate *priv = GET_PRIVATE (service);
 
-  if (priv->image_url)
-  {
+  /* Make the service online if it isn't */
+  if (!priv->user_id) {
+    start (service);
+    if (!priv->proxy) {
+      const char *key = NULL, *secret = NULL;
+      mojito_keystore_get_key_secret ("myspace", &key, &secret);
+      priv->proxy = oauth_proxy_new (key, secret, "http://api.myspace.com/", FALSE);
+    }
+    mojito_keyfob_oauth ((OAuthProxy *)priv->proxy, got_tokens_cb, service);
+  }
+
+  if (priv->image_url) {
     mojito_web_download_image_async (priv->image_url,
                                      _avatar_downloaded_cb,
                                      service);
