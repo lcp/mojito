@@ -430,6 +430,17 @@ request_avatar (MojitoService *service)
 {
   MojitoServiceFacebookPrivate *priv = GET_PRIVATE (service);
 
+  /* Make the service online if it isn't */
+  if (!priv->uid){
+    start(service);
+    if (!priv->proxy){
+      const char *key = NULL, *secret = NULL;
+      mojito_keystore_get_key_secret ("facebook", &key, &secret);
+      priv->proxy = facebook_proxy_new (key, secret);
+    }
+    mojito_keyfob_facebook ((FacebookProxy *)priv->proxy, got_tokens_cb, service);
+  }
+
   if (priv->pic_square)
   {
     mojito_web_download_image_async (priv->pic_square,
