@@ -49,6 +49,8 @@ node_from_call (RestProxyCall *call)
 {
   static RestXmlParser *parser = NULL;
   RestXmlNode *root;
+  gchar *content, **tokens;
+  goffset len;
 
   if (call == NULL)
     return NULL;
@@ -63,9 +65,19 @@ node_from_call (RestProxyCall *call)
     return NULL;
   }
 
-  root = rest_xml_parser_parse_from_data (parser,
-                                          rest_proxy_call_get_payload (call),
-                                          rest_proxy_call_get_payload_length (call));
+  content = g_strdup (rest_proxy_call_get_payload (call));
+  len = rest_proxy_call_get_payload_length (call);
+  tokens = g_strsplit( content, "xmlns=\"api-v1.myspace.com\"", 2 );
+  if(tokens[1] != NULL) {
+    g_free(content);
+    content = g_strdup_printf("%sxmlns=\"http://api-v1.myspace.com\"%s",
+                              tokens[0],
+                              tokens[1]);
+    g_strfreev(tokens);
+    len = strlen(content);
+  }
+  root = rest_xml_parser_parse_from_data (parser, content, len);
+  g_free(content);
 
   if (root == NULL) {
     g_message ("Invalid XML from MySpace: %s",
