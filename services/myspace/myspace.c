@@ -419,7 +419,7 @@ update_status (MojitoService *service, const char *msg)
     return;
 
   call = rest_proxy_new_call (priv->proxy);
-  rest_proxy_call_set_method (call, "PUT");
+  rest_proxy_call_set_method (call, "POST");
   function = g_strdup_printf ("v1/users/%s/status", priv->user_id);
   rest_proxy_call_set_function (call, function);
   g_free (function);
@@ -428,6 +428,10 @@ update_status (MojitoService *service, const char *msg)
                               "userId", priv->user_id,
                               "status", msg,
                               NULL);
+
+  rest_proxy_call_add_headers (call,
+                               "X-HTTP-Method-Override", "PUT",
+                               NULL);
 
   rest_proxy_call_async (call, _status_updated_cb, (GObject *)service, NULL, NULL);
 }
