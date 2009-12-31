@@ -549,6 +549,18 @@ online_notify (gboolean online, gpointer user_data)
 }
 
 static void
+credentials_updated (MojitoService *service)
+{
+  /* If we're online, force a reconnect to fetch new credentials */
+  if (mojito_is_online ()) {
+    online_notify (FALSE, service);
+    online_notify (TRUE, service);
+  }
+
+  mojito_service_emit_user_changed (service);
+}
+
+static void
 mojito_service_facebook_dispose (GObject *object)
 {
   MojitoServiceFacebookPrivate *priv = MOJITO_SERVICE_FACEBOOK (object)->priv;
@@ -591,6 +603,7 @@ mojito_service_facebook_class_init (MojitoServiceFacebookClass *klass)
   service_class->start = start;
   service_class->refresh = refresh;
   service_class->request_avatar = request_avatar;
+  service_class->credentials_updated = credentials_updated;
 }
 
 static void
