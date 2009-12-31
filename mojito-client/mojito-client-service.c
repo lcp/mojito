@@ -413,6 +413,20 @@ mojito_client_service_request_avatar (MojitoClientService *service)
   com_intel_Mojito_Service_request_avatar_async (priv->proxy, _request_avatar_cb, NULL);
 }
 
+static void
+_credentials_updated_cb (DBusGProxy *proxy, GError *error, gpointer userdata)
+{
+  /* TODO: print the error to the console? */
+}
+
+void
+mojito_client_service_credentials_updated (MojitoClientService *service)
+{
+  MojitoClientServicePrivate *priv = GET_PRIVATE (service);
+
+  com_intel_Mojito_Service_credentials_updated_async (priv->proxy, _credentials_updated_cb, NULL);
+}
+
 const char *
 mojito_client_service_get_name (MojitoClientService *service)
 {
