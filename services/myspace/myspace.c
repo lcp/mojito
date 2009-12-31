@@ -49,6 +49,8 @@ node_from_call (RestProxyCall *call)
 {
   static RestXmlParser *parser = NULL;
   RestXmlNode *root;
+  gchar *content, **tokens;
+  goffset len;
 
   if (call == NULL)
     return NULL;
@@ -63,9 +65,19 @@ node_from_call (RestProxyCall *call)
     return NULL;
   }
 
-  root = rest_xml_parser_parse_from_data (parser,
-                                          rest_proxy_call_get_payload (call),
-                                          rest_proxy_call_get_payload_length (call));
+  content = g_strdup (rest_proxy_call_get_payload (call));
+  len = rest_proxy_call_get_payload_length (call);
+  tokens = g_strsplit( content, "xmlns=\"api-v1.myspace.com\"", 2 );
+  if(tokens[1] != NULL) {
+    g_free(content);
+    content = g_strdup_printf("%sxmlns=\"http://api-v1.myspace.com\"%s",
+                              tokens[0],
+                              tokens[1]);
+    g_strfreev(tokens);
+    len = strlen(content);
+  }
+  root = rest_xml_parser_parse_from_data (parser, content, len);
+  g_free(content);
 
   if (root == NULL) {
     g_message ("Invalid XML from MySpace: %s",
@@ -98,10 +110,10 @@ get_utc_date (const char *s)
   if (s == NULL)
     return NULL;
 
-  strptime (s, "%d/%m/%Y %T", &tm);
+  strptime (s, "%Y-%m-%dT%T", &tm);
   t = mktime (&tm);
   /* TODO: This is a very bad timezone correction */
-  t += (8 * 60 * 60); /* 8 hours */
+  t += (24 * 60 * 60); /* 24 hours */
 
   return mojito_time_t_to_string (t);
 }
@@ -218,6 +230,10 @@ get_status_updates (MojitoServiceMySpace *service)
 
   g_object_get (service, "params", &params, NULL);
 
+  rest_proxy_call_add_params(call, 
+                             "dateFormat", "GMT",
+                             "timeZone", "0",
+                             NULL);
   if (params && g_hash_table_lookup (params, "own")) {
     function = g_strdup_printf ("v1/users/%s/status", priv->user_id);
     rest_proxy_call_set_function (call, function);
@@ -376,8 +392,18 @@ request_avatar (MojitoService *service)
 {
   MojitoServiceMySpacePrivate *priv = GET_PRIVATE (service);
 
-  if (priv->image_url)
-  {
+  /* Make the service online if it isn't */
+  if (!priv->user_id) {
+    start (service);
+    if (!priv->proxy) {
+      const char *key = NULL, *secret = NULL;
+      mojito_keystore_get_key_secret ("myspace", &key, &secret);
+      priv->proxy = oauth_proxy_new (key, secret, "http://api.myspace.com/", FALSE);
+    }
+    mojito_keyfob_oauth ((OAuthProxy *)priv->proxy, got_tokens_cb, service);
+  }
+
+  if (priv->image_url) {
     mojito_web_download_image_async (priv->image_url,
                                      _avatar_downloaded_cb,
                                      service);
@@ -409,7 +435,7 @@ update_status (MojitoService *service, const char *msg)
     return;
 
   call = rest_proxy_new_call (priv->proxy);
-  rest_proxy_call_set_method (call, "PUT");
+  rest_proxy_call_set_method (call, "POST");
   function = g_strdup_printf ("v1/users/%s/status", priv->user_id);
   rest_proxy_call_set_function (call, function);
   g_free (function);
@@ -418,6 +444,10 @@ update_status (MojitoService *service, const char *msg)
                               "userId", priv->user_id,
                               "status", msg,
                               NULL);
+
+  rest_proxy_call_add_headers (call,
+                               "X-HTTP-Method-Override", "PUT",
+                               NULL);
 
   rest_proxy_call_async (call, _status_updated_cb, (GObject *)service, NULL, NULL);
 }
@@ -450,6 +480,18 @@ online_notify (gboolean online, gpointer user_data)
     g_free (priv->user_id);
     priv->user_id = NULL;
   }
+}
+
+static 
+void credentials_updated (MojitoService *service)
+{
+  /* If we're online, force a reconnect to fetch new credentials */
+  if (mojito_is_online ()) {
+    online_notify (FALSE, service);
+    online_notify (TRUE, service);
+  }
+
+  mojito_service_emit_user_changed (service);
 }
 
 static void
@@ -495,6 +537,7 @@ mojito_service_myspace_class_init (MojitoServiceMySpaceClass *klass)
   service_class->start = start;
   service_class->refresh = refresh;
   service_class->request_avatar = request_avatar;
+  service_class->credentials_updated = credentials_updated;
 }
 
 static void
