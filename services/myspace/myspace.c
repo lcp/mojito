@@ -44,6 +44,8 @@ struct _MojitoServiceMySpacePrivate {
   char *image_url;
 };
 
+static GList *service_list;
+
 RestXmlNode *
 node_from_call (RestProxyCall *call)
 {
@@ -482,22 +484,38 @@ online_notify (gboolean online, gpointer user_data)
   }
 }
 
+static void
+_credentials_updated_func (gpointer data, gpointer userdata)
+{
+  MojitoService *service = MOJITO_SERVICE (data);
+  MojitoServiceMySpacePrivate *priv = MOJITO_SERVICE_MYSPACE (service)->priv;
+
+  online_notify (FALSE, service);
+  /* Clean up image_url to prevent avatar retrieving */
+  if (priv->image_url){
+     g_free (priv->image_url);
+     priv->image_url = NULL;
+  }
+  online_notify (TRUE, service);
+  
+  mojito_service_emit_user_changed (service);
+}
+
 static 
 void credentials_updated (MojitoService *service)
 {
   /* If we're online, force a reconnect to fetch new credentials */
   if (mojito_is_online ()) {
-    online_notify (FALSE, service);
-    online_notify (TRUE, service);
+    g_list_foreach (service_list, _credentials_updated_func, NULL);
   }
-
-  mojito_service_emit_user_changed (service);
 }
 
 static void
 mojito_service_myspace_dispose (GObject *object)
 {
   MojitoServiceMySpacePrivate *priv = MOJITO_SERVICE_MYSPACE (object)->priv;
+
+  service_list = g_list_remove (service_list, MOJITO_SERVICE_MYSPACE (object));
 
   mojito_online_remove_notify (online_notify, object);
 
@@ -544,6 +562,8 @@ static void
 mojito_service_myspace_init (MojitoServiceMySpace *self)
 {
   self->priv = GET_PRIVATE (self);
+
+  service_list = g_list_append (service_list, self);
 
   if (mojito_is_online ()) {
     online_notify (TRUE, self);
