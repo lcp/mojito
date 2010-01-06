@@ -552,6 +552,8 @@ _credentials_updated_func (gpointer data, gpointer userdata)
      priv->pic_square = NULL;
   }
   online_notify (TRUE, service);
+
+  mojito_service_emit_user_changed (service);
 }
 
 static void
@@ -561,8 +563,6 @@ credentials_updated (MojitoService *service)
   if (mojito_is_online ()) {
     g_list_foreach (service_list, _credentials_updated_func, NULL);
   }
-
-  mojito_service_emit_user_changed (service);
 }
 
 static void
