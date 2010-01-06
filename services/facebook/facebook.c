@@ -48,6 +48,8 @@ struct _MojitoServiceFacebookPrivate {
   char *pic_square;
 };
 
+static GList *service_list;
+
 RestXmlNode *
 node_from_call (RestProxyCall *call)
 {
@@ -430,17 +432,6 @@ request_avatar (MojitoService *service)
 {
   MojitoServiceFacebookPrivate *priv = GET_PRIVATE (service);
 
-  /* Make the service online if it isn't */
-  if (!priv->uid){
-    start(service);
-    if (!priv->proxy){
-      const char *key = NULL, *secret = NULL;
-      mojito_keystore_get_key_secret ("facebook", &key, &secret);
-      priv->proxy = facebook_proxy_new (key, secret);
-    }
-    mojito_keyfob_facebook ((FacebookProxy *)priv->proxy, got_tokens_cb, service);
-  }
-
   if (priv->pic_square)
   {
     mojito_web_download_image_async (priv->pic_square,
@@ -549,21 +540,37 @@ online_notify (gboolean online, gpointer user_data)
 }
 
 static void
+_credentials_updated_func (gpointer data, gpointer userdata)
+{
+  MojitoService *service = MOJITO_SERVICE (data);
+  MojitoServiceFacebookPrivate *priv = MOJITO_SERVICE_FACEBOOK (service)->priv;
+     
+  online_notify (FALSE, service);
+  /* Clean up pic_square to prevent avatar retrieving */
+  if (priv->pic_square){
+     g_free (priv->pic_square);
+     priv->pic_square = NULL;
+  }
+  online_notify (TRUE, service);
+
+  mojito_service_emit_user_changed (service);
+}
+
+static void
 credentials_updated (MojitoService *service)
 {
   /* If we're online, force a reconnect to fetch new credentials */
   if (mojito_is_online ()) {
-    online_notify (FALSE, service);
-    online_notify (TRUE, service);
+    g_list_foreach (service_list, _credentials_updated_func, NULL);
   }
-
-  mojito_service_emit_user_changed (service);
 }
 
 static void
 mojito_service_facebook_dispose (GObject *object)
 {
   MojitoServiceFacebookPrivate *priv = MOJITO_SERVICE_FACEBOOK (object)->priv;
+
+  service_list = g_list_remove (service_list, MOJITO_SERVICE_FACEBOOK (object));
 
   mojito_online_remove_notify (online_notify, object);
 
@@ -610,6 +617,8 @@ static void
 mojito_service_facebook_init (MojitoServiceFacebook *self)
 {
   self->priv = GET_PRIVATE (self);
+
+  service_list = g_list_append (service_list, self);
 
   if (mojito_is_online ()) {
     online_notify (TRUE, self);
