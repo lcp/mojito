@@ -1,10 +1,9 @@
 /*
  * Mojito Facebook service support
  *
- * Author:
- *       Gary Ching-Pang Lin <glin@novell.com>
- *
  * Copyright (C) 2009 Novell, Inc.
+ *
+ * Author: Gary Ching-Pang Lin <glin@novell.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU Lesser General Public License,
