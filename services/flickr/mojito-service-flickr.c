@@ -28,6 +28,7 @@
 #include <mojito-keyfob/mojito-keyfob.h>
 #include <rest-extras/flickr-proxy.h>
 #include <rest/rest-xml-parser.h>
+#include <mojito/mojito-online.h>
 
 G_DEFINE_TYPE (MojitoServiceFlickr, mojito_service_flickr, MOJITO_TYPE_SERVICE)
 
@@ -42,6 +43,8 @@ struct _MojitoServiceFlickrPrivate {
   MojitoSet *set;
   gboolean refreshing;
 };
+
+static GList *service_list;
 
 static gboolean
 check_attrs (RestXmlNode *node, ...)
@@ -237,6 +240,22 @@ refresh (MojitoService *service)
 }
 
 static void
+_credentials_updated_func (gpointer data, gpointer userdata)
+{
+  MojitoService *service = MOJITO_SERVICE (data);
+     
+  refresh (service);
+
+  mojito_service_emit_user_changed (service);
+}
+
+static void
+credentials_updated (MojitoService *service)
+{
+  g_list_foreach (service_list, _credentials_updated_func, NULL);
+}
+
+static void
 start (MojitoService *service)
 {
   MojitoServiceFlickr *flickr = (MojitoServiceFlickr*)service;
@@ -254,6 +273,8 @@ static void
 mojito_service_flickr_dispose (GObject *object)
 {
   MojitoServiceFlickrPrivate *priv = MOJITO_SERVICE_FLICKR (object)->priv;
+
+  service_list = g_list_remove (service_list, MOJITO_SERVICE_FLICKR (object));
 
   if (priv->proxy) {
     g_object_unref (priv->proxy);
@@ -276,6 +297,7 @@ mojito_service_flickr_class_init (MojitoServiceFlickrClass *klass)
   service_class->get_name = mojito_service_flickr_get_name;
   service_class->start = start;
   service_class->refresh = refresh;
+  service_class->credentials_updated = credentials_updated;
 }
 
 static void
@@ -291,4 +313,6 @@ mojito_service_flickr_init (MojitoServiceFlickr *self)
 
   priv->set = mojito_item_set_new ();
   priv->refreshing = FALSE;
+
+  service_list = g_list_append (service_list, self);
 }
