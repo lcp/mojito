@@ -1,5 +1,6 @@
 /*
  * Mojito Facebook service support
+ *
  * Copyright (C) 2009 Novell, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
