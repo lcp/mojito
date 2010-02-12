@@ -23,3 +23,7 @@ endif
 if WITH_FACEBOOK
 SUBDIRS += facebook
 endif
+
+if WITH_YOUTUBE
+SUBDIRS += youtube
+endif

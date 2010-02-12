@@ -55,6 +55,9 @@ static const Keys keys[] = {
 #ifdef FACEBOOK_APIKEY
   { "facebook", FACEBOOK_APIKEY, FACEBOOK_SECRET },
 #endif
+#ifdef YOUTUBE_APIKEY
+  { "youtube", YOUTUBE_APIKEY, NULL },
+#endif
   { NULL }
 };
 

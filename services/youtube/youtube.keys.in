@@ -1,0 +1,5 @@
+[MojitoService]
+_Name=Youtube
+_Description=Youtube is a video broadcast site
+Link=http://www.last.fm/
+AuthType=username
