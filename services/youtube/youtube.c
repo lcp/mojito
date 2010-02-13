@@ -146,62 +146,52 @@ got_video_list_cb (RestProxyCall *call,
   if (!root)
     return;
 
-  node = rest_xml_node_find (node, "entry");
+  node = rest_xml_node_find (node, "channel");
+  if (!node)
+    return;
+
+  node = rest_xml_node_find (node, "item");
 
   set = mojito_item_set_new ();
 
   while (node){
     /*
-    <feed>
-
-      <entry>
-        <published>2010-02-12T01:55:04.000Z</published>
-        <author>
-          <name></name>
-        </author>
-        <media:group>
-          <media:player url="http://www.youtube.com/watch?v=DfGu5gDsxxo&amp;feature=youtube_gdata"/>
-          <media:thumbnail url='http://i.ytimg.com/vi/DfGu5gDsxxo/default.jpg' height='90' width='120' time='00:00:24.500'/>
-          <media:title type='plain'></media:title>
-        </media:group>
-      </entry>
-
-    </feed>
-
-    video url: http://www.youtube.com/watch?v=<videoid>
+    <rss>
+      <channel>
+        <item>
+	  <guid isPermaLink="false">http://gdata.youtube.com/feeds/api/videos/<videoid></guid>
+          <atom:updated>2010-02-13T06:17:32.000Z</atom:updated>
+	  <title>Video Title</title>
+	  <author>Author Name</author>
+	  <link>http://www.youtube.com/watch?v=<videoid>&amp;feature=youtube_gdata</link>
+	  <media:group>
+	    <media:thumbnail url="http://i.ytimg.com/vi/<videoid>/default.jpg" height="90" width="120" time="00:03:00.500"/>
+	  </media:group>
+        </item>
+      </channel>
+    </rss>
     */
     MojitoItem *item;
-    char *title, *date, *url, *thumbnail;
+    char *thumbnail;
     RestXmlNode *subnode, *thumb_node, *video_node;
-   
+
     item = mojito_item_new ();
     mojito_item_set_service (item, service);
 
-    date = get_child_node_value (subnode, "published");
-    mojito_item_put (item, "date", date);
+    mojito_item_put (item, "id", get_child_node_value (node, "guid"));
+    mojito_item_put (item, "date", get_child_node_value (node, "atom:updated"));
+    mojito_item_put (item, "title", get_child_node_value (node, "title"));
+    mojito_item_put (item, "author", get_child_node_value (node, "author"));
+    mojito_item_put (item, "url", get_child_node_value (node, "link"));
 
-    /* author */
-    subnode = rest_xml_node_find (node, "author");
-    if (subnode)
-      mojito_item_put (item, "author", get_child_node_value (subnode, "name"));
-    
     /* media:group */
     subnode = rest_xml_node_find (node, "media:group");
     if (subnode){
-      title = get_child_node_value (subnode, "media:title");
-
       thumb_node = rest_xml_node_find (subnode, "media:thumbnail");
       thumbnail = rest_xml_node_get_attr (thumb_node, "url");
-
-      video_node = get_child_node_value (subnode, media:player);
-      url = rest_xml_node_get_attr (video_node, "url");
-
-      mojito_item_put (item, "id", video_id);
-      mojito_item_put (item, "title", title);
       mojito_item_put (item, "thumbnail", thumbnail);
-      mojito_item_put (item, "url", url);
     }
- 
+
     mojito_set_add (set, G_OBJECT (item));
     g_object_unref (item);
 
@@ -209,7 +199,7 @@ got_video_list_cb (RestProxyCall *call,
   }
 
   rest_xml_node_unref (root);
-  
+
   if (!mojito_set_is_empty (set))
     mojito_service_emit_refreshed (service, set);
 
@@ -236,6 +226,7 @@ refresh (MojitoService *service)
   rest_proxy_call_set_function (call, function);
   rest_proxy_call_add_params (call,
                               "max-results", "10",
+                              "alt", "rss",
                               NULL);
   rest_proxy_call_async (call,
                          (RestProxyCallAsyncCallback)got_video_list_cb,
