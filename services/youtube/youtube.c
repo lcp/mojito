@@ -189,7 +189,7 @@ got_video_list_cb (RestProxyCall *call,
     if (subnode){
       thumb_node = rest_xml_node_find (subnode, "media:thumbnail");
       thumbnail = rest_xml_node_get_attr (thumb_node, "url");
-      mojito_item_put (item, "thumbnail", thumbnail);
+      mojito_item_request_image_fetch (item, "thumbnail", thumbnail);
     }
 
     mojito_set_add (set, G_OBJECT (item));
