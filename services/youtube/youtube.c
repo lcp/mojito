@@ -48,8 +48,6 @@ struct _MojitoServiceYoutubePrivate {
   GConfClient *gconf;
   char *user_id;
   guint gconf_notify_id;
-  MojitoSet *set;
-  MojitoCallList *calls;
 };
 
 RestXmlNode *
@@ -118,15 +116,6 @@ get_child_node_value (RestXmlNode *node, const char *name)
 
 
 static void
-emit_if_done (MojitoServiceYoutube *youtube)
-{
-  if (mojito_call_list_is_empty (youtube->priv->calls)) {
-    mojito_service_emit_refreshed ((MojitoService *)youtube, youtube->priv->set);
-    mojito_set_empty (youtube->priv->set);
-  }
-}
-
-static void
 start (MojitoService *service)
 {
   MojitoServiceYoutube *youtube = MOJITO_SERVICE_YOUTUBE (service);
@@ -141,7 +130,6 @@ got_video_list_cb (RestProxyCall *call,
                    gpointer       user_data)
 {
   MojitoService *service = MOJITO_SERVICE (weak_object);
-  MojitoServiceYoutubePrivate *priv = MOJITO_SERVICE_YOUTUBE (service)->priv;
   RestXmlNode *root, *node;
   MojitoSet *set;
 
@@ -176,7 +164,7 @@ got_video_list_cb (RestProxyCall *call,
     */
     MojitoItem *item;
     char *thumbnail;
-    RestXmlNode *subnode, *thumb_node, *video_node;
+    RestXmlNode *subnode, *thumb_node;
 
     item = mojito_item_new ();
     mojito_item_set_service (item, service);
@@ -220,11 +208,7 @@ refresh (MojitoService *service)
     return;
   }
 
-  mojito_call_list_cancel_all (youtube->priv->calls);
-  mojito_set_empty (youtube->priv->set);
-
   call = rest_proxy_new_call (youtube->priv->proxy);
-  mojito_call_list_add (youtube->priv->calls, call);
   function = g_strdup_printf ("users/%s/newsubscriptionvideos", youtube->priv->user_id);
   rest_proxy_call_set_function (call, function);
   rest_proxy_call_add_params (call,
@@ -290,12 +274,6 @@ mojito_service_youtube_dispose (GObject *object)
     priv->gconf = NULL;
   }
 
-  /* Do this here so only disposing if there are callbacks pending */
-  if (priv->calls) {
-    mojito_call_list_free (priv->calls);
-    priv->calls = NULL;
-  }
-
   G_OBJECT_CLASS (mojito_service_youtube_parent_class)->dispose (object);
 }
 
@@ -305,8 +283,6 @@ mojito_service_youtube_finalize (GObject *object)
   MojitoServiceYoutubePrivate *priv = ((MojitoServiceYoutube*)object)->priv;
 
   g_free (priv->user_id);
-
-  mojito_set_unref (priv->set);
 
   G_OBJECT_CLASS (mojito_service_youtube_parent_class)->finalize (object);
 }
@@ -333,9 +309,6 @@ mojito_service_youtube_init (MojitoServiceYoutube *self)
   MojitoServiceYoutubePrivate *priv;
 
   priv = self->priv = GET_PRIVATE (self);
-
-  priv->set = mojito_item_set_new ();
-  priv->calls = mojito_call_list_new ();
 
   priv->running = FALSE;
 
