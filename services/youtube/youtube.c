@@ -149,7 +149,7 @@ got_video_list_cb (RestProxyCall *call,
   if (!root)
     return;
 
-  node = rest_xml_node_find (node, "channel");
+  node = rest_xml_node_find (root, "channel");
   if (!node)
     return;
 
