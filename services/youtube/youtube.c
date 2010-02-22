@@ -123,6 +123,21 @@ start (MojitoService *service)
   youtube->priv->running = TRUE;
 }
 
+static char *
+get_utc_date (const char *s)
+{
+  struct tm tm;
+  time_t t;
+
+  if (s == NULL)
+    return NULL;
+
+  strptime (s, "%Y-%m-%dT%T", &tm);
+  t = mktime (&tm);
+
+  return mojito_time_t_to_string (t);
+}
+
 static void
 got_video_list_cb (RestProxyCall *call,
                    const GError  *error,
@@ -163,14 +178,18 @@ got_video_list_cb (RestProxyCall *call,
     </rss>
     */
     MojitoItem *item;
-    char *thumbnail;
+    char *date, *thumbnail;
     RestXmlNode *subnode, *thumb_node;
 
     item = mojito_item_new ();
     mojito_item_set_service (item, service);
 
     mojito_item_put (item, "id", get_child_node_value (node, "guid"));
-    mojito_item_put (item, "date", get_child_node_value (node, "atom:updated"));
+
+    date = get_child_node_value (node, "atom:updated");
+    if (date != NULL)
+      mojito_item_put (item, "date", get_utc_date(date));
+
     mojito_item_put (item, "title", get_child_node_value (node, "title"));
     mojito_item_put (item, "author", get_child_node_value (node, "author"));
     mojito_item_put (item, "url", get_child_node_value (node, "link"));
